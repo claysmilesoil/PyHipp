@@ -79,7 +79,7 @@ class Waveform(DPT.DPObject):
         # ..................code...................
         # .........................................
         self.data = self.data + wf.data
-        for ar in wf.array.dict:
+        for ar in wf.array_dict:
             self.array_dict[ar] = self.numSets
         self.numSets += 1
         
@@ -98,7 +98,7 @@ class Waveform(DPT.DPObject):
         # in the menu evoked by right-clicking on the axis after the window is created by PanGUI.create_window
         # for more information, please check in PanGUI.main.create_menu
         plotOpts = {'PlotType': DPT.objects.ExclusiveOptions(['Channel', 'Array'], 0), \
-            'LabelsOff': False, 'TitleOff': False}
+            'LabelsOff': False, 'TitleOff': False, 'TicksOff': False}
 
         # update the plotOpts based on kwargs, these two lines are important to
         # receive the input arguments and act accordingly
@@ -109,6 +109,9 @@ class Waveform(DPT.DPObject):
 
         if getPlotOpts:  # this will be called by PanGUI.main to obtain the plotOpts to create a menu once we right-click on the axis
             return plotOpts 
+        
+        if self.current_plot_type is None:
+            self.current_plot_type = plot_type
 
         if getNumEvents:  
             # this will be called by PanGUI.main to return two values: 
@@ -117,9 +120,20 @@ class Waveform(DPT.DPObject):
             # .........................................
             # ..................code...................
             # .........................................
+            if self.current_plot_type == plot_type:
+                if plot_type == 'Channel':
+                    return self.numSets, i # please return two items here: <total-number-of-items-to-plot>, <current-item-index-to-plot>
+                elif plot_type == 'Array':
+                    return len(self.array_dict), i
+            elif self.current_plot_type() == 'Array' and plot_type == 'Channel':
+                # add code to return number of channels and the appropriate
+                # channel number if the current array number is i
+                return self.numSets, i*32
+            elif self.current_plot_type == 'Channel' and plot_type == 'Array':
+                # add code to return number of arrays and the appropriate
+                # array number if the current channel number is i
+                return len(self.array_dict), i//32
             
-            return  # please return two items here: <total-number-of-items-to-plot>, <current-item-index-to-plot>
-                
         if ax is None:
             ax = plt.gca()
 
@@ -134,7 +148,7 @@ class Waveform(DPT.DPObject):
             # .........................................
             # ..................code...................
             # .........................................
-            pass  # you may delete this line
+            self.plot_data(i, ax, plotOpts, isCorner)
     
         ########labels###############
         if not plotOpts['TitleOff']:  # if TitleOff icon in the right-click menu is clicked
@@ -153,7 +167,22 @@ class Waveform(DPT.DPObject):
             
         return ax
     
+    def plot_data(self, i, ax, plotOpts, isCorner):
+        y = self.data[i]
+        x = np.arange(y.shape[0])
+        ax.plot(x, y)
     
+        if not plotOpts['TitleOff']:
+            ax.set_title(self.dirs[i])
+                    
+        if (not plotOpts['LabelsOff']) or isCorner:
+            ax.set_xlabel('Time (sample unit)')
+            ax.set_ylabel('Voltage (uV)')
+    
+        if plotOpts['TicksOff'] or (not isCorner):
+            ax.set_xticklabels([])
+            ax.set_yticklabels([])
+
     
     #%% helper functions        
     # Please make use of the properties of the OOP to call and edit the field-value

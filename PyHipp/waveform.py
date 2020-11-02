@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import hickle as hkl
 import os
 import numpy as np
+from .misc import getChannelInArray
 
 class Waveform(DPT.DPObject):
     # Please change the class name according to your needs
@@ -41,9 +42,6 @@ class Waveform(DPT.DPObject):
         # The following is some hints of the things-to-do:
         
         # read the mountainsort template files
-        # .........................................
-        # ..................code...................
-        # .........................................
         pwd = os.path.normpath(os.getcwd());
         # 'channelxxx, xxx is the number of the channel'
         self.channel_filename = [os.path.basename(pwd)]  
@@ -75,9 +73,6 @@ class Waveform(DPT.DPObject):
         # from an extra object (wf) to this object
         # It is useful to store the information of the objects for panning through in the future
         DPT.DPObject.append(self, wf)  # append self.setidx and self.dirs
-        # .........................................
-        # ..................code...................
-        # .........................................
         self.data = self.data + wf.data
         for ar in wf.array_dict:
             self.array_dict[ar] = self.numSets
@@ -117,15 +112,12 @@ class Waveform(DPT.DPObject):
             # this will be called by PanGUI.main to return two values: 
             # first value is the total number of items to pan through, 
             # second value is the current index of the item to plot
-            # .........................................
-            # ..................code...................
-            # .........................................
             if self.current_plot_type == plot_type:
                 if plot_type == 'Channel':
                     return self.numSets, i # please return two items here: <total-number-of-items-to-plot>, <current-item-index-to-plot>
                 elif plot_type == 'Array':
                     return len(self.array_dict), i
-            elif self.current_plot_type() == 'Array' and plot_type == 'Channel':
+            elif self.current_plot_type == 'Array' and plot_type == 'Channel':
                 # add code to return number of channels and the appropriate
                 # channel number if the current array number is i
                 return self.numSets, i*32
@@ -143,27 +135,27 @@ class Waveform(DPT.DPObject):
         ######################################################################
         #################### start plotting ##################################
         ######################################################################
+        fig = ax.figure
         if plot_type == 'Channel':  # plot in channel level
-            # plot the mountainsort data according to the current index 'i'
-            # .........................................
-            # ..................code...................
-            # .........................................
-            self.plot_data(i, ax, plotOpts, isCorner)
-    
-        ########labels###############
-        if not plotOpts['TitleOff']:  # if TitleOff icon in the right-click menu is clicked
-            # set the title in this format: channelxxx, fill with zeros if the channel number is not three-digit
-            # .........................................
-            # ..................codes..................
-            # .........................................
-            pass  # you may delete this line
-            
-        if not plotOpts['LabelsOff']:  # if LabelsOff icon in the right-click menu is clicked
-            # set the xlabel and ylabel
-            # .........................................
-            # ..................code...................
-            # .........................................
-            pass  # you may delete this line
+            if self.current_plot_type == 'Array':
+                self.remove_subplots(fig)
+                ax = fig.add_subplot(1,1,1)
+            self.plot_data(i, ax, plotOpts, 1)
+            # self.current_plot_type = 'Channel'
+        elif plot_type == 'Array':
+            self.remove_subplots(fig)
+            advals = np.array([*self.array_dict.values()])
+            cstart = 0
+            if i > 0:
+                cstart = advals[i-1] + 1
+            cend = advals[i]
+            currch = cstart
+            while currch <= cend:
+                currchname = self.dirs[currch]
+                ax, isCorner = getChannelInArray(currchname, fig)
+                self.plot_data(currch, ax, plotOpts, isCorner)
+                currch += 1
+            self.current_plot_type = 'Array'
             
         return ax
     
@@ -182,6 +174,10 @@ class Waveform(DPT.DPObject):
         if plotOpts['TicksOff'] or (not isCorner):
             ax.set_xticklabels([])
             ax.set_yticklabels([])
+            
+    def remove_subplots(self, fig):
+        for x in fig.get_axes():
+            x.remove()
 
     
     #%% helper functions        
